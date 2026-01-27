@@ -84,31 +84,37 @@ jobs:
           Write-Host "=== Testing Local Command ===" -ForegroundColor Cyan
 
           # Create test directory
-          New-Item -ItemType Directory -Force -Path "TestProject" | Out-Null
-          cd TestProject
+          $TestDir = "TestProject"
+          New-Item -ItemType Directory -Force -Path $TestDir | Out-Null
+          Push-Location $TestDir
 
-          # Run local sync (creates AGENTS.md)
-          ..\agents-sync.ps1 local --force
+          try {
+            # Run local sync (creates AGENTS.md)
+            & "..\agents-sync.ps1" local --force
 
-          # Verify AGENTS.md was created
-          if (-not (Test-Path "AGENTS.md")) {
-            Write-Error "FAIL: AGENTS.md not created"
-            exit 1
+            # Verify AGENTS.md was created
+            if (-not (Test-Path "AGENTS.md")) {
+              Write-Error "FAIL: AGENTS.md not created"
+              exit 1
+            }
+
+            # Create existing file with different content
+            'Test content' | Set-Content -Path "AGENTS.md" -Encoding UTF8
+
+            # Run local sync again (should create backup)
+            & "..\agents-sync.ps1" local --force
+
+            # Verify backup was created
+            if (-not (Test-Path "AGENTS.md.backup")) {
+              Write-Error "FAIL: Backup not created"
+              exit 1
+            }
+
+            Write-Host "[OK] Local sync successful" -ForegroundColor Green
           }
-
-          # Create existing file with different content
-          'Test content' | Set-Content -Path "AGENTS.md" -Encoding UTF8
-
-          # Run local sync again (should create backup)
-          ..\agents-sync.ps1 local --force
-
-          # Verify backup was created
-          if (-not (Test-Path "AGENTS.md.backup")) {
-            Write-Error "FAIL: Backup not created"
-            exit 1
+          finally {
+            Pop-Location
           }
-
-          Write-Host "[OK] Local sync successful" -ForegroundColor Green
 
       - name: Integration Test - Status Command
         shell: powershell
@@ -181,31 +187,34 @@ jobs:
           echo "=== Testing Local Command ==="
 
           # Create test directory
-          mkdir -p TestProject
-          cd TestProject
+          TEST_DIR="TestProject"
+          mkdir -p "$TEST_DIR"
+          (
+            cd "$TEST_DIR"
 
-          # Run local sync (creates AGENTS.md)
-          ../agents-sync.sh local --force
+            # Run local sync (creates AGENTS.md)
+            ../agents-sync.sh local --force
 
-          # Verify AGENTS.md was created
-          if [[ ! -f "AGENTS.md" ]]; then
-            echo "[FAIL] AGENTS.md not created"
-            exit 1
-          fi
+            # Verify AGENTS.md was created
+            if [[ ! -f "AGENTS.md" ]]; then
+              echo "[FAIL] AGENTS.md not created"
+              exit 1
+            fi
 
-          # Create existing file with different content
-          echo "Test content" > AGENTS.md
+            # Create existing file with different content
+            echo "Test content" > AGENTS.md
 
-          # Run local sync again (should create backup)
-          ../agents-sync.sh local --force
+            # Run local sync again (should create backup)
+            ../agents-sync.sh local --force
 
-          # Verify backup was created
-          if [[ ! -f "AGENTS.md.backup" ]]; then
-            echo "[FAIL] Backup not created"
-            exit 1
-          fi
+            # Verify backup was created
+            if [[ ! -f "AGENTS.md.backup" ]]; then
+              echo "[FAIL] Backup not created"
+              exit 1
+            fi
 
-          echo "[OK] Local sync successful"
+            echo "[OK] Local sync successful"
+          )
 
       - name: Integration Test - Status Command
         shell: bash
