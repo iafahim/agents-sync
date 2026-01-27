@@ -181,16 +181,40 @@ function Find-AiDocFiles {
     param([string]$RootPath, [string[]]$FilePatterns)
 
     $Results = [System.Collections.Generic.List[string]]::new()
+    $MaxDepth = 6
 
-    Write-Info "Scanning: $RootPath"
-    $DriveLetter = (Get-Item $RootPath).PSDrive.Name
+    Write-Info "Scanning: $RootPath (max depth: $MaxDepth)"
 
     foreach ($Pattern in $FilePatterns) {
         try {
-            $Files = Get-ChildItem -Path $RootPath -Filter $Pattern -Recurse -ErrorAction SilentlyContinue -File
-            foreach ($File in $Files) {
-                if (-not (Test-InExcludedDir -Path $File.FullName)) {
-                    $Results.Add($File.FullName)
+            # Use depth-limited recursion
+            $Queue = [System.Collections.Generic.Queue[Tuple[string,int]]]::new()
+            $Queue.Enqueue([Tuple]::Create($RootPath, 0))
+
+            while ($Queue.Count -gt 0) {
+                $Current = $Queue.Dequeue()
+                $CurrentPath = $Current.Item1
+                $CurrentDepth = $Current.Item2
+
+                if ($CurrentDepth -gt $MaxDepth) {
+                    continue
+                }
+
+                $Files = Get-ChildItem -Path $CurrentPath -Filter $Pattern -ErrorAction SilentlyContinue -File
+                foreach ($File in $Files) {
+                    if (-not (Test-InExcludedDir -Path $File.FullName)) {
+                        $Results.Add($File.FullName)
+                    }
+                }
+
+                # Add subdirectories to queue if we haven't hit max depth
+                if ($CurrentDepth -lt $MaxDepth) {
+                    $SubDirs = Get-ChildItem -Path $CurrentPath -ErrorAction SilentlyContinue -Directory
+                    foreach ($Dir in $SubDirs) {
+                        if (-not (Test-InExcludedDir -Path $Dir.FullName)) {
+                            $Queue.Enqueue([Tuple]::Create($Dir.FullName, $CurrentDepth + 1))
+                        }
+                    }
                 }
             }
         }

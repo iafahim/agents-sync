@@ -128,7 +128,7 @@ find_ai_doc_files() {
             if ! is_excluded_dir "$file"; then
                 results+=("$file")
             fi
-        done < <(find "$root_path" -name "$pattern" -type f -print0 2>/dev/null || true)
+        done < <(find "$root_path" -maxdepth 6 -name "$pattern" -type f -print0 2>/dev/null || true)
     done
 
     printf '%s\n' "${results[@]}" | sort -u
