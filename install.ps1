@@ -68,7 +68,16 @@ New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
 
 # Copy main script
 Write-Info 'Installing agents-sync.ps1...'
-Copy-Item -Path (Join-Path $PSScriptRoot 'agents-sync.ps1') -Destination $ScriptPath -Force
+if ($PSScriptRoot -eq '') {
+    # Running via iex, download from GitHub
+    Write-Info 'Downloading agents-sync.ps1 from GitHub...'
+    $ScriptContent = Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/IAFahim/agents-sync/main/agents-sync.ps1' -UseBasicParsing | Select-Object -ExpandProperty Content
+    $ScriptContent | Set-Content -Path $ScriptPath -Encoding UTF8
+}
+else {
+    # Running from local script file
+    Copy-Item -Path (Join-Path $PSScriptRoot 'agents-sync.ps1') -Destination $ScriptPath -Force
+}
 
 # Create batch wrapper
 Write-Info 'Creating agents-sync.cmd...'

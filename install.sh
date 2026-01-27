@@ -57,7 +57,14 @@ mkdir -p "$BIN_DIR"
 
 # Copy main script
 log_info "Installing agents-sync.sh..."
-cp "$(dirname "$0")/agents-sync.sh" "$SCRIPT_PATH"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -f "$SCRIPT_DIR/agents-sync.sh" ]]; then
+    # Running via curl | bash, download from GitHub
+    log_info "Downloading agents-sync.sh from GitHub..."
+    curl -sSL "https://raw.githubusercontent.com/IAFahim/agents-sync/main/agents-sync.sh" -o "$SCRIPT_PATH"
+else
+    cp "$SCRIPT_DIR/agents-sync.sh" "$SCRIPT_PATH"
+fi
 chmod +x "$SCRIPT_PATH"
 
 # Create symlink to /usr/local/bin
