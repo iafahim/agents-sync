@@ -138,6 +138,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: syntax-check
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
 
