@@ -26,6 +26,28 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# =============================================================================
+# LOGGING FUNCTIONS
+# =============================================================================
+
+function Write-Info {
+    param([string]$Message)
+    Write-Host '[INFO] ' -NoNewline -ForegroundColor Cyan
+    Write-Host $Message
+}
+
+function Write-Success {
+    param([string]$Message)
+    Write-Host '[OK] ' -NoNewline -ForegroundColor Green
+    Write-Host $Message
+}
+
+function Write-Warn {
+    param([string]$Message)
+    Write-Host '[WARN] ' -NoNewline -ForegroundColor Yellow
+    Write-Host $Message
+}
+
 $Version = '1.0.0'
 $InstallDir = Join-Path $env:USERPROFILE '.agents-sync'
 $BinDir = Join-Path $InstallDir 'bin'
