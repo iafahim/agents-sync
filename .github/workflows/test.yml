@@ -20,7 +20,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Check Bash Scripts Syntax
-        shell: bash
         run: |
           echo "=== Checking Bash Script Syntax ==="
           for script in install.sh test.sh agents-sync.sh; do
@@ -30,21 +29,21 @@ jobs:
           done
 
       - name: PowerShell Syntax Check
-        shell: pwsh
         run: |
-          Write-Host "=== Checking PowerShell Script Syntax ==="
-
-          $scripts = @('agents-sync.ps1', 'test.ps1', 'install.ps1')
-          foreach ($script in $scripts) {
-            Write-Host "Checking $script..."
-            $errors = $null
-            $null = [System.Management.Automation.PSParser]::Tokenize((Get-Content $script -Raw), [ref]$errors)
-            if ($errors.Count -gt 0) {
-              Write-Error "Syntax errors in $script"
-              exit 1
+          echo "=== Checking PowerShell Script Syntax ==="
+          pwsh -Command "
+            \$scripts = @('agents-sync.ps1', 'test.ps1', 'install.ps1')
+            foreach (\$script in \$scripts) {
+              Write-Host \"Checking \$script...\"
+              \$errors = \$null
+              \$null = [System.Management.Automation.PSParser]::Tokenize((Get-Content \$script -Raw), [ref]\$errors)
+              if (\$errors.Count -gt 0) {
+                Write-Error \"Syntax errors in \$script\"
+                exit 1
+              }
+              Write-Host \"[OK] \$script syntax OK\"
             }
-            Write-Host "[OK] $script syntax OK"
-          }
+          "
 
   # --------------------------------------------------------------------------
   # TEST WINDOWS
@@ -62,10 +61,12 @@ jobs:
           Write-Host "=== Running Windows Test Suite ===" -ForegroundColor Cyan
           .\test.ps1
 
-      - name: Integration Test - Init Command
+      - name: Integration Test - Init and Local Sync
         shell: powershell
         run: |
-          Write-Host "=== Testing Init Command ===" -ForegroundColor Cyan
+          Write-Host "=== Testing Init and Local Sync ===" -ForegroundColor Cyan
+
+          # Initialize template
           .\agents-sync.ps1 init
 
           $ConfigDir = Join-Path $env:USERPROFILE '.agents-sync'
@@ -75,46 +76,32 @@ jobs:
             Write-Error "FAIL: Template not created"
             exit 1
           }
+          Write-Host "[OK] Template created" -ForegroundColor Green
 
-          Write-Host "[OK] Template created successfully" -ForegroundColor Green
+          # Test local sync with backup creation
+          New-Item -ItemType Directory -Force -Path "TestProject" | Out-Null
+          cd TestProject
 
-      - name: Integration Test - Local Command
-        shell: powershell
-        run: |
-          Write-Host "=== Testing Local Command ===" -ForegroundColor Cyan
+          # First sync creates AGENTS.md
+          & "..\agents-sync.ps1" local --force
 
-          # Create test directory
-          $TestDir = "TestProject"
-          New-Item -ItemType Directory -Force -Path $TestDir | Out-Null
-          Push-Location $TestDir
-
-          try {
-            # Run local sync (creates AGENTS.md)
-            & "..\agents-sync.ps1" local --force
-
-            # Verify AGENTS.md was created
-            if (-not (Test-Path "AGENTS.md")) {
-              Write-Error "FAIL: AGENTS.md not created"
-              exit 1
-            }
-
-            # Create existing file with different content
-            'Test content' | Set-Content -Path "AGENTS.md" -Encoding UTF8
-
-            # Run local sync again (should create backup)
-            & "..\agents-sync.ps1" local --force
-
-            # Verify backup was created
-            if (-not (Test-Path "AGENTS.md.backup")) {
-              Write-Error "FAIL: Backup not created"
-              exit 1
-            }
-
-            Write-Host "[OK] Local sync successful" -ForegroundColor Green
+          if (-not (Test-Path "AGENTS.md")) {
+            Write-Error "FAIL: AGENTS.md not created"
+            exit 1
           }
-          finally {
-            Pop-Location
+
+          # Modify content to trigger backup on next sync
+          'Test content' | Set-Content -Path "AGENTS.md" -Encoding UTF8
+
+          # Second sync should create backup
+          & "..\agents-sync.ps1" local --force
+
+          if (-not (Test-Path "AGENTS.md.backup")) {
+            Write-Error "FAIL: Backup not created"
+            exit 1
           }
+
+          Write-Host "[OK] Local sync with backup successful" -ForegroundColor Green
 
       - name: Integration Test - Status Command
         shell: powershell
@@ -137,12 +124,11 @@ jobs:
 
       - name: Create Report
         if: always()
-        shell: powershell
         run: |
-          "## Windows Test Report" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-          "[PASS] Syntax Validation: Passed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-          "[PASS] Test Suite: Executed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-          "[PASS] Integration Tests: Passed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          echo "## Windows Test Report" >> $env:GITHUB_STEP_SUMMARY
+          echo "[PASS] Syntax Validation: Passed" >> $env:GITHUB_STEP_SUMMARY
+          echo "[PASS] Test Suite: Executed" >> $env:GITHUB_STEP_SUMMARY
+          echo "[PASS] Integration Tests: Passed" >> $env:GITHUB_STEP_SUMMARY
 
   # --------------------------------------------------------------------------
   # TEST UNIX
@@ -164,10 +150,11 @@ jobs:
           chmod +x test.sh
           ./test.sh
 
-      - name: Integration Test - Init Command
-        shell: bash
+      - name: Integration Test - Init and Local Sync
         run: |
-          echo "=== Testing Init Command ==="
+          echo "=== Testing Init and Local Sync ==="
+
+          # Initialize template
           chmod +x agents-sync.sh
           ./agents-sync.sh init
 
@@ -178,46 +165,34 @@ jobs:
             echo "[FAIL] Template not created"
             exit 1
           fi
+          echo "[OK] Template created"
 
-          echo "[OK] Template created successfully"
+          # Test local sync with backup creation
+          mkdir TestProject
+          cd TestProject
 
-      - name: Integration Test - Local Command
-        shell: bash
-        run: |
-          echo "=== Testing Local Command ==="
+          # First sync creates AGENTS.md
+          ../agents-sync.sh local --force
 
-          # Create test directory
-          TEST_DIR="TestProject"
-          mkdir -p "$TEST_DIR"
-          (
-            cd "$TEST_DIR"
+          if [[ ! -f "AGENTS.md" ]]; then
+            echo "[FAIL] AGENTS.md not created"
+            exit 1
+          fi
 
-            # Run local sync (creates AGENTS.md)
-            ../agents-sync.sh local --force
+          # Modify content to trigger backup on next sync
+          echo "Test content" > AGENTS.md
 
-            # Verify AGENTS.md was created
-            if [[ ! -f "AGENTS.md" ]]; then
-              echo "[FAIL] AGENTS.md not created"
-              exit 1
-            fi
+          # Second sync should create backup
+          ../agents-sync.sh local --force
 
-            # Create existing file with different content
-            echo "Test content" > AGENTS.md
+          if [[ ! -f "AGENTS.md.backup" ]]; then
+            echo "[FAIL] Backup not created"
+            exit 1
+          fi
 
-            # Run local sync again (should create backup)
-            ../agents-sync.sh local --force
-
-            # Verify backup was created
-            if [[ ! -f "AGENTS.md.backup" ]]; then
-              echo "[FAIL] Backup not created"
-              exit 1
-            fi
-
-            echo "[OK] Local sync successful"
-          )
+          echo "[OK] Local sync with backup successful"
 
       - name: Integration Test - Status Command
-        shell: bash
         run: |
           echo "=== Testing Status Command ==="
 
@@ -237,7 +212,6 @@ jobs:
 
       - name: Create Report
         if: always()
-        shell: bash
         run: |
           OS_ICON="Linux"
           if [[ "${{ matrix.os }}" == "macos-latest" ]]; then OS_ICON="macOS"; fi
