@@ -155,6 +155,9 @@ function Get-TemplateContent {
 
 function Set-TemplateContent {
     param([string]$Content)
+    if (-not (Test-Path $ConfigDir)) {
+        New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null
+    }
     $Content | Set-Content -Path $TemplatePath -Encoding UTF8
 
     $Config = Get-Config
@@ -225,7 +228,7 @@ function Show-Diff {
 
     for ($i = 0; $i -lt [Math]::Min(5, $MaxLines); $i++) {
         $OldLine = if ($i -lt $OldLines.Count) { $OldLines[$i] } else { $null }
-        $NewLine = if ($i -lt $NewLines.Count) { $NewLine } else { $null }
+        $NewLine = if ($i -lt $NewLines.Count) { $NewLines[$i] } else { $null }
 
         if ($OldLine -ne $NewLine) {
             if ($null -ne $OldLine) {
@@ -461,7 +464,7 @@ function Invoke-Edit {
     Initialize-Config
 
     if ($ShowPath) {
-        Write-Host $TemplatePath
+        Write-Output $TemplatePath
         return
     }
 
