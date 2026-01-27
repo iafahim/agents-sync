@@ -38,14 +38,14 @@ log_test() {
 
 log_pass() {
     echo -e " ${GREEN}PASS${NC}"
-    ((TESTS_PASSED++))
-    ((TESTS_TOTAL++))
+    ((TESTS_PASSED++)) || true
+    ((TESTS_TOTAL++)) || true
 }
 
 log_fail() {
     echo -e " ${RED}FAIL${NC}"
-    ((TESTS_FAILED++))
-    ((TESTS_TOTAL++))
+    ((TESTS_FAILED++)) || true
+    ((TESTS_TOTAL++)) || true
 }
 
 log_info() {
@@ -110,6 +110,9 @@ fi
 
 # Test 6: Backup file created on overwrite
 log_test "Backup file created on overwrite"
+# First create the file manually with different content
+echo "Test content" > "$AGENTS_PATH"
+bash "$SCRIPT_PATH" local --force &> /dev/null || true
 if [[ -f "${AGENTS_PATH}.backup" ]]; then
     log_pass
 else

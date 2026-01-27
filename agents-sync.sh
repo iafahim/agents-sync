@@ -535,7 +535,10 @@ case "$COMMAND" in
     global) cmd_global ;;
     edit)   cmd_edit ;;
     status) cmd_status ;;
-    help)   cmd_help ;;
+    help)
+        cmd_help
+        exit 0
+        ;;
     *)
         log_error "Unknown command: $COMMAND"
         cmd_help
