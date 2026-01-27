@@ -83,7 +83,7 @@ jobs:
           cd TestProject
 
           # First sync creates AGENTS.md
-          & "..\agents-sync.ps1" local --force
+          & "..\agents-sync.ps1" -Command local -Force
 
           if (-not (Test-Path "AGENTS.md")) {
             Write-Error "FAIL: AGENTS.md not created"
@@ -94,7 +94,7 @@ jobs:
           'Test content' | Set-Content -Path "AGENTS.md" -Encoding UTF8
 
           # Second sync should create backup
-          & "..\agents-sync.ps1" local --force
+          & "..\agents-sync.ps1" -Command local -Force
 
           if (-not (Test-Path "AGENTS.md.backup")) {
             Write-Error "FAIL: Backup not created"
