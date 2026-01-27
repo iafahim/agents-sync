@@ -68,6 +68,11 @@ cd "$TEST_DIR" || {
     exit 1
 }
 
+# Debug info
+echo "DEBUG: PWD=$(pwd)"
+echo "DEBUG: SCRIPT_PATH=$SCRIPT_PATH"
+echo "DEBUG: BASH_VERSION=$BASH_VERSION"
+
 # Test 1: Script loads without errors
 log_test "Script loads without errors"
 if bash "$SCRIPT_PATH" help &> /dev/null; then
