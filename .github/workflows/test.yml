@@ -131,11 +131,12 @@ jobs:
 
       - name: Create Report
         if: always()
+        shell: powershell
         run: |
-          echo "## Windows Test Report" >> $env:GITHUB_STEP_SUMMARY
-          echo "[PASS] Syntax Validation: Passed" >> $env:GITHUB_STEP_SUMMARY
-          echo "[PASS] Test Suite: Executed" >> $env:GITHUB_STEP_SUMMARY
-          echo "[PASS] Integration Tests: Passed" >> $env:GITHUB_STEP_SUMMARY
+          "## Windows Test Report" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "[PASS] Syntax Validation: Passed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "[PASS] Test Suite: Executed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "[PASS] Integration Tests: Passed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
 
   # --------------------------------------------------------------------------
   # TEST UNIX
@@ -158,6 +159,7 @@ jobs:
           ./test.sh
 
       - name: Integration Test - Init Command
+        shell: bash
         run: |
           echo "=== Testing Init Command ==="
           chmod +x agents-sync.sh
@@ -174,6 +176,7 @@ jobs:
           echo "[OK] Template created successfully"
 
       - name: Integration Test - Local Command
+        shell: bash
         run: |
           echo "=== Testing Local Command ==="
 
@@ -205,6 +208,7 @@ jobs:
           echo "[OK] Local sync successful"
 
       - name: Integration Test - Status Command
+        shell: bash
         run: |
           echo "=== Testing Status Command ==="
 
@@ -224,6 +228,7 @@ jobs:
 
       - name: Create Report
         if: always()
+        shell: bash
         run: |
           OS_ICON="Linux"
           if [[ "${{ matrix.os }}" == "macos-latest" ]]; then OS_ICON="macOS"; fi
