@@ -137,8 +137,8 @@ else
 fi
 
 # Cleanup
-cd /
-rm -rf "$TEST_DIR"
+cd / || true
+rm -rf "$TEST_DIR" || true
 
 echo ""
 echo "============================================================================"
@@ -152,3 +152,5 @@ echo ""
 if [[ $TESTS_FAILED -gt 0 ]]; then
     exit 1
 fi
+
+exit 0
