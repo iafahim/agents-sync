@@ -122,14 +122,33 @@ find_ai_doc_files() {
     log_info "Scanning: $root_path"
 
     local results=()
+    local max_depth=6
 
-    for pattern in "${patterns[@]}"; do
-        while IFS= read -r -d '' file; do
-            if ! is_excluded_dir "$file"; then
-                results+=("$file")
-            fi
-        done < <(find "$root_path" -maxdepth 6 -name "$pattern" -type f -print0 2>/dev/null || true)
-    done
+    # Use platform-specific find command
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS/BSD find - use -depth with pruning
+        for pattern in "${patterns[@]}"; do
+            while IFS= read -r -d '' file; do
+                if ! is_excluded_dir "$file"; then
+                    results+=("$file")
+                fi
+            done < <(find "$root_path" -name "$pattern" -type f -print0 2>/dev/null || true)
+        done
+    else
+        # GNU find supports -maxdepth
+        for pattern in "${patterns[@]}"; do
+            while IFS= read -r -d '' file; do
+                if ! is_excluded_dir "$file"; then
+                    # Check depth by counting directory separators
+                    local depth="${file#$root_path}"
+                    depth=$(echo "$depth" | tr -cd '/' | wc -c)
+                    if [[ $depth -le $max_depth ]]; then
+                        results+=("$file")
+                    fi
+                fi
+            done < <(find "$root_path" -name "$pattern" -type f -print0 2>/dev/null || true)
+        done
+    fi
 
     printf '%s\n' "${results[@]}" | sort -u
 }
