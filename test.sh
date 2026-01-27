@@ -11,7 +11,8 @@
 #
 # =============================================================================
 
-set -euo pipefail
+# Don't use set -e globally as it causes issues in some environments
+# Handle errors explicitly in tests
 
 VERSION="1.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -58,8 +59,14 @@ echo -e "${GRAY}Test directory: ${TEST_DIR}${NC}"
 echo ""
 
 # Setup
-mkdir -p "$TEST_DIR"
-cd "$TEST_DIR"
+mkdir -p "$TEST_DIR" || {
+    echo "Failed to create test directory: $TEST_DIR"
+    exit 1
+}
+cd "$TEST_DIR" || {
+    echo "Failed to cd to test directory: $TEST_DIR"
+    exit 1
+}
 
 # Test 1: Script loads without errors
 log_test "Script loads without errors"
