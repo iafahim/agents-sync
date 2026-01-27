@@ -16,7 +16,7 @@ set -euo pipefail
 VERSION="1.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/agents-sync.sh"
-TEST_DIR="/tmp/agents-sync-test-$(shuf -n 1 -i 1000-9999)"
+TEST_DIR="/tmp/agents-sync-test-$RANDOM"
 
 # Colors
 RED='\033[0;31m'

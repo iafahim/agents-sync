@@ -199,6 +199,9 @@ function Find-AiDocFiles {
         }
     }
 
+    if ($Results.Count -eq 0) {
+        return [System.Collections.Generic.List[string]]::new()
+    }
     return $Results | Sort-Object -Unique
 }
 
@@ -399,13 +402,13 @@ function Invoke-Global {
             return
         }
         $Files = Find-AiDocFiles -RootPath $Path -FilePatterns $Patterns
-        $AllFiles.AddRange($Files)
+        if ($Files) { $AllFiles.AddRange($Files) }
     }
     else {
         $Drives = Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Used -ne $null }
         foreach ($Drive in $Drives) {
             $Files = Find-AiDocFiles -RootPath "$($Drive.Name):\" -FilePatterns $Patterns
-            $AllFiles.AddRange($Files)
+            if ($Files) { $AllFiles.AddRange($Files) }
         }
     }
 

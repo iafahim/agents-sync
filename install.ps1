@@ -81,10 +81,24 @@ else {
 
 # Create batch wrapper
 Write-Info 'Creating agents-sync.cmd...'
-@"
+@'
 @echo off
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0agents-sync.ps1" %*
-"@ | Set-Content -Path $WrapperPath -Encoding ASCII
+setlocal
+set "args="
+:parse_args
+if "%~1"=="" goto done
+set "first=%~1"
+set "first=%first:--=-%"
+if "%first%"=="%~1" (
+    set "args=%args% %~1"
+) else (
+    set "args=%args% %first%"
+)
+shift
+goto parse_args
+:done
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0agents-sync.ps1"%args%
+'@ | Set-Content -Path $WrapperPath -Encoding ASCII
 
 # Add to PATH
 Write-Info 'Adding to user PATH...'
