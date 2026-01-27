@@ -93,8 +93,8 @@ if (-not $SkipGitAlias) {
     Write-Info 'Creating git alias...'
 
     # Detect git config location
-    $GitConfigPath = if (Test-Path $env:USERPROFILE\.gitconfig) {
-        $env:USERPROFILE\.gitconfig
+    $GitConfigPath = if (Test-Path "$env:USERPROFILE\.gitconfig") {
+        "$env:USERPROFILE\.gitconfig"
     }
     else {
         Join-Path $env:USERPROFILE '.gitconfig'
