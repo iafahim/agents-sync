@@ -11,8 +11,7 @@
 #
 # =============================================================================
 
-# Don't use set -e globally as it causes issues in some environments
-# Handle errors explicitly in tests
+set -euo pipefail
 
 VERSION="1.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,7 +33,7 @@ TESTS_TOTAL=0
 
 # Logging
 log_test() {
-    echo -n "[TEST $((TESTS_TOTAL + 1))] $1..."
+    echo -n "[TEST $((TESTS_TOTAL + 1))] $1..." || true
 }
 
 log_pass() {
