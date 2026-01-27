@@ -99,7 +99,8 @@ set_template_content() {
 
     local last_update=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     local config=$(get_config)
-    echo "$config" | jq --arg last_update "$last_update" '.lastUpdate = $last_update' > "$CONFIG_PATH.tmp"
+    # Update lastUpdate using sed instead of jq for better compatibility
+    echo "$config" | sed "s/\"lastUpdate\": \"[^\"]*\"/\"lastUpdate\": \"$last_update\"/" > "$CONFIG_PATH.tmp"
     mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
 }
 
@@ -452,18 +453,21 @@ cmd_status() {
 
     echo ""
     echo "Configured Patterns:"
-    echo "$config" | jq -r '.patterns[]' | while read -r pattern; do
-        echo -e "  \033[90m- $pattern\033[0m"
+    # Extract patterns using simpler method
+    local patterns=$(echo "$config" | sed -n '/"patterns":/,/\]/p' | grep '"[^"]*"' | tr -d ' ",' | grep -v '^patterns')
+    for pattern in $patterns; do
+        [[ -n "$pattern" ]] && echo -e "  \033[90m- $pattern\033[0m"
     done
 
     echo ""
     echo "Excluded Paths:"
-    echo "$config" | jq -r '.excludedPaths[]' | while read -r path; do
-        echo -e "  \033[90m- $path\033[0m"
+    local excluded=$(echo "$config" | sed -n '/"excludedPaths":/,/\]/p' | grep '"[^"]*"' | tr -d ' ",' | grep -v 'excludedPaths')
+    for path in $excluded; do
+        [[ -n "$path" ]] && echo -e "  \033[90m- $path\033[0m"
     done
 
     echo ""
-    echo "$config" | jq -r '.lastUpdate' | read -r last_update
+    local last_update=$(echo "$config" | grep -oE '"lastUpdate"[[:space:]]*:[[:space:]]*"[^"]*"' | cut -d'"' -f4)
     echo "Last Updated:     $last_update"
     echo ""
 }
