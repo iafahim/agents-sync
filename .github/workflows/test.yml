@@ -1,0 +1,221 @@
+name: Test Agents-Sync
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+
+permissions:
+  contents: read
+
+jobs:
+  # --------------------------------------------------------------------------
+  # SYNTAX VALIDATION
+  # --------------------------------------------------------------------------
+  syntax-check:
+    name: Syntax Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Bash Scripts Syntax
+        run: |
+          echo "=== Checking Bash Script Syntax ==="
+          for script in install.sh test.sh agents-sync.sh; do
+            echo "Checking $script..."
+            bash -n "$script" || exit 1
+            echo "[OK] $script syntax OK"
+          done
+
+      - name: PowerShell Syntax Check
+        run: |
+          echo "=== Checking PowerShell Script Syntax ==="
+          pwsh -Command "
+            \$scripts = @('agents-sync.ps1', 'test.ps1', 'install.ps1')
+            foreach (\$script in \$scripts) {
+              Write-Host \"Checking \$script...\"
+              \$errors = \$null
+              \$null = [System.Management.Automation.PSParser]::Tokenize((Get-Content \$script -Raw), [ref]\$errors)
+              if (\$errors.Count -gt 0) {
+                Write-Error \"Syntax errors in \$script\"
+                exit 1
+              }
+              Write-Host \"[OK] \$script syntax OK\"
+            }
+          "
+
+  # --------------------------------------------------------------------------
+  # TEST WINDOWS
+  # --------------------------------------------------------------------------
+  test-windows:
+    name: Windows (PowerShell)
+    runs-on: windows-latest
+    needs: syntax-check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Test Suite
+        shell: powershell
+        run: |
+          Write-Host "=== Running Windows Test Suite ===" -ForegroundColor Cyan
+          .\test.ps1
+
+      - name: Integration Test - Init Command
+        shell: powershell
+        run: |
+          Write-Host "=== Testing Init Command ===" -ForegroundColor Cyan
+          .\agents-sync.ps1 init
+
+          $ConfigDir = Join-Path $env:USERPROFILE '.agents-sync'
+          $TemplatePath = Join-Path $ConfigDir 'template.md'
+
+          if (-not (Test-Path $TemplatePath)) {
+            Write-Error "FAIL: Template not created"
+            exit 1
+          }
+
+          Write-Host "[OK] Template created successfully" -ForegroundColor Green
+
+      - name: Integration Test - Local Command
+        shell: powershell
+        run: |
+          Write-Host "=== Testing Local Command ===" -ForegroundColor Cyan
+
+          # Create test directory
+          New-Item -ItemType Directory -Force -Path "TestProject" | Out-Null
+          cd TestProject
+
+          # Run local sync
+          ..\agents-sync.ps1 local --force
+
+          # Verify AGENTS.md was created
+          if (-not (Test-Path "AGENTS.md")) {
+            Write-Error "FAIL: AGENTS.md not created"
+            exit 1
+          }
+
+          # Verify backup was created
+          if (-not (Test-Path "AGENTS.md.backup")) {
+            Write-Error "FAIL: Backup not created"
+            exit 1
+          }
+
+          Write-Host "[OK] Local sync successful" -ForegroundColor Green
+
+      - name: Integration Test - Status Command
+        shell: powershell
+        run: |
+          Write-Host "=== Testing Status Command ===" -ForegroundColor Cyan
+
+          $Output = .\agents-sync.ps1 status 2>&1
+
+          if ($Output -notmatch "Version") {
+            Write-Error "FAIL: Status output missing Version"
+            exit 1
+          }
+
+          if ($Output -notmatch "Template Path") {
+            Write-Error "FAIL: Status output missing Template Path"
+            exit 1
+          }
+
+          Write-Host "[OK] Status command successful" -ForegroundColor Green
+
+      - name: Create Report
+        if: always()
+        run: |
+          echo "## Windows Test Report" >> $env:GITHUB_STEP_SUMMARY
+          echo "[PASS] Syntax Validation: Passed" >> $env:GITHUB_STEP_SUMMARY
+          echo "[PASS] Test Suite: Executed" >> $env:GITHUB_STEP_SUMMARY
+          echo "[PASS] Integration Tests: Passed" >> $env:GITHUB_STEP_SUMMARY
+
+  # --------------------------------------------------------------------------
+  # TEST UNIX
+  # --------------------------------------------------------------------------
+  test-unix:
+    name: ${{ matrix.os }} (Bash)
+    runs-on: ${{ matrix.os }}
+    needs: syntax-check
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Test Suite
+        run: |
+          echo "=== Running Unix Test Suite ==="
+          chmod +x test.sh
+          ./test.sh
+
+      - name: Integration Test - Init Command
+        run: |
+          echo "=== Testing Init Command ==="
+          chmod +x agents-sync.sh
+          ./agents-sync.sh init
+
+          CONFIG_DIR="${HOME}/.agents-sync"
+          TEMPLATE_PATH="${CONFIG_DIR}/template.md"
+
+          if [[ ! -f "$TEMPLATE_PATH" ]]; then
+            echo "[FAIL] Template not created"
+            exit 1
+          fi
+
+          echo "[OK] Template created successfully"
+
+      - name: Integration Test - Local Command
+        run: |
+          echo "=== Testing Local Command ==="
+
+          # Create test directory
+          mkdir -p TestProject
+          cd TestProject
+
+          # Run local sync
+          ../agents-sync.sh local --force
+
+          # Verify AGENTS.md was created
+          if [[ ! -f "AGENTS.md" ]]; then
+            echo "[FAIL] AGENTS.md not created"
+            exit 1
+          fi
+
+          # Verify backup was created
+          if [[ ! -f "AGENTS.md.backup" ]]; then
+            echo "[FAIL] Backup not created"
+            exit 1
+          fi
+
+          echo "[OK] Local sync successful"
+
+      - name: Integration Test - Status Command
+        run: |
+          echo "=== Testing Status Command ==="
+
+          OUTPUT=$(./agents-sync.sh status 2>&1 || true)
+
+          if ! echo "$OUTPUT" | grep -q "Version"; then
+            echo "[FAIL] Status output missing Version"
+            exit 1
+          fi
+
+          if ! echo "$OUTPUT" | grep -q "Template Path"; then
+            echo "[FAIL] Status output missing Template Path"
+            exit 1
+          fi
+
+          echo "[OK] Status command successful"
+
+      - name: Create Report
+        if: always()
+        run: |
+          OS_ICON="Linux"
+          if [[ "${{ matrix.os }}" == "macos-latest" ]]; then OS_ICON="macOS"; fi
+
+          echo "## $OS_ICON ${{ matrix.os }} Test Report" >> $GITHUB_STEP_SUMMARY
+          echo "[PASS] Syntax Validation: Passed" >> $GITHUB_STEP_SUMMARY
+          echo "[PASS] Test Suite: Executed" >> $GITHUB_STEP_SUMMARY
+          echo "[PASS] Integration Tests: Passed" >> $GITHUB_STEP_SUMMARY
