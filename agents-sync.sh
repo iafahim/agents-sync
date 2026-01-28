@@ -101,6 +101,10 @@ get_template_content() {
 
 set_template_content() {
     local content="$1"
+
+    # Ensure config directory exists before writing
+    init_config
+
     echo "$content" > "$TEMPLATE_PATH"
 
     local last_update=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
