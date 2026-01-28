@@ -51,8 +51,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('template', 'scan', 'edit', 'status', 'help')]
-    [string]$Command = 'help',
+    [ValidateSet('template', 'scan', 'edit', 'status', 'help', '')]
+    [string]$Command = '',
 
     [Parameter()]
     [string]$Source = '',

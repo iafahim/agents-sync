@@ -62,8 +62,8 @@ try {
     $TestResults.Total++
     $TestResults.Passed++
 
-    Write-Host '[TEST 2] Init command creates template...' -NoNewline
-    & $ScriptPath 'init' 2>&1 | Out-Null
+    Write-Host '[TEST 2] Template command creates template...' -NoNewline
+    & $ScriptPath 'template' 2>&1 | Out-Null
     $ConfigPath = Join-Path $env:USERPROFILE '.agents-sync'
     $TemplatePath = Join-Path $ConfigPath 'template.md'
     if (Test-Path $TemplatePath) {
@@ -109,7 +109,7 @@ try {
     }
 
     Write-Host '[TEST 5] Local command creates AGENTS.md...' -NoNewline
-    & $ScriptPath 'local' -Force 2>&1 | Out-Null
+    & $ScriptPath '' -Force 2>&1 | Out-Null
     $AgentsPath = Join-Path $TestDir 'AGENTS.md'
     if (Test-Path $AgentsPath) {
         Write-Host ' PASS' -ForegroundColor Green
@@ -125,7 +125,7 @@ try {
     Write-Host '[TEST 6] Local command with existing file creates backup...' -NoNewline
     # First create the file manually
     'Test content' | Set-Content -Path $AgentsPath -Encoding UTF8
-    & $ScriptPath 'local' -Force 2>&1 | Out-Null
+    & $ScriptPath '' -Force 2>&1 | Out-Null
     if (Test-Path "$AgentsPath.backup") {
         Write-Host ' PASS' -ForegroundColor Green
         $TestResults.Total++
@@ -140,7 +140,7 @@ try {
     Write-Host '[TEST 7] Dry run does not modify files...' -NoNewline
     $BeforeHash = if (Test-Path $AgentsPath) { (Get-FileHash $AgentsPath).Hash } else { '' }
     Remove-Item $AgentsPath -Force -ErrorAction SilentlyContinue
-    & $ScriptPath 'local' -DryRun -Force 2>&1 | Out-Null
+    & $ScriptPath '' -DryRun -Force 2>&1 | Out-Null 2>&1 | Out-Null
     $FileExists = Test-Path $AgentsPath
     if (-not $FileExists) {
         Write-Host ' PASS' -ForegroundColor Green
