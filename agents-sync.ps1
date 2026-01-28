@@ -7,13 +7,13 @@
     Maintains a global template and can update all project instances.
 
 .PARAMETER Command
-    Command to run: init, local, global, edit, status
+    Command to run: template, scan, edit, status, help
 
 .PARAMETER Source
-    Source file for init command
+    Source file for template command
 
 .PARAMETER Path
-    Specific path to scan (for global mode)
+    Specific path to scan (for scan command)
 
 .PARAMETER Patterns
     File patterns to search (comma-separated)
@@ -28,15 +28,15 @@
     Show template path only (for edit command)
 
 .EXAMPLE
-    agents-sync init
+    agents-sync template
     Initialize with current AGENTS.md as template
 
 .EXAMPLE
-    agents-sync local
-    Sync current directory only
+    agents-sync
+    Sync current directory (default behavior)
 
 .EXAMPLE
-    agents-sync global --dry-run
+    agents-sync scan --dry-run
     Preview global sync without applying
 
 .EXAMPLE
@@ -51,7 +51,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('init', 'local', 'global', 'edit', 'status', 'help')]
+    [ValidateSet('template', 'scan', 'edit', 'status', 'help')]
     [string]$Command = 'help',
 
     [Parameter()]
@@ -299,30 +299,33 @@ AGENTS-SYNC v1.0.0
 Synchronize AGENTS.md across all your projects.
 
 USAGE:
-    agents-sync <command> [options]
+    agents-sync [command] [options]
+
+    No command = Sync current directory (default behavior)
 
 COMMANDS:
-    init              Initialize global template from current directory
-    local             Sync current directory only
-    global            Sync all projects across entire PC
+    (none)            Sync current directory only (default)
+    template          Create/update global template
+    scan              Scan and sync all projects across entire PC
     edit              Edit global template
     status            Show configuration and statistics
+    help              Show this help message
 
 OPTIONS:
-    --source <file>   Source file for init (default: ./AGENTS.md)
-    --path <dir>      Specific path to scan (for global mode)
+    --source <file>   Source file for template (default: ./AGENTS.md)
+    --path <dir>      Specific path to scan (for scan command)
     --patterns <list> File patterns to search (comma-separated)
     --dry-run         Preview changes without applying
     --force           Skip confirmation prompts
     --show-path       Show template path only (for edit command)
 
 EXAMPLES:
-    agents-sync init
-    agents-sync local
-    agents-sync global --dry-run
-    agents-sync global --path "D:\Projects"
-    agents-sync edit
-    agents-sync status
+    agents-sync                   # Sync current directory
+    agents-sync template          # Create template from current AGENTS.md
+    agents-sync scan --dry-run    # Preview all changes across PC
+    agents-sync scan --path "D:\Projects"
+    agents-sync edit              # Edit global template
+    agents-sync status            # Show configuration
 
 '@ -ForegroundColor Cyan
 }
@@ -371,7 +374,7 @@ function Invoke-Local {
     $Template = Get-TemplateContent
 
     if (-not $Template) {
-        Write-Error "No template found. Run 'agents-sync init' first."
+        Write-Error "No template found. Run 'agents-sync template' first."
         return
     }
 
@@ -406,7 +409,7 @@ function Invoke-Global {
     $Template = Get-TemplateContent
 
     if (-not $Template) {
-        Write-Error "No template found. Run 'agents-sync init' first."
+        Write-Error "No template found. Run 'agents-sync template' first."
         return
     }
 
@@ -547,10 +550,11 @@ function Invoke-Status {
 # =============================================================================
 
 switch ($Command) {
-    'init' { Invoke-Init }
-    'local' { Invoke-Local }
-    'global' { Invoke-Global }
+    'template' { Invoke-Init }
+    'scan' { Invoke-Global }
     'edit' { Invoke-Edit }
     'status' { Invoke-Status }
     'help' { Invoke-Help }
+    # Default to local sync if no command specified (when called without parameters)
+    '' { Invoke-Local }
 }
