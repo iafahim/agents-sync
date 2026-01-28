@@ -40,45 +40,31 @@ chmod +x install.sh
 sudo ./install.sh
 ```
 
+## Quick Start
+
+```bash
+# 1. Create your global template from an existing file
+agents-sync template --source ./AGENTS.md
+
+# 2. Drop AGENTS.md in any directory (no args needed!)
+cd my-project
+agents-sync
+
+# 3. Scan and sync all projects across your computer
+agents-sync scan --dry-run  # Preview first
+agents-sync scan             # Apply changes
+```
+
 ## Commands
 
-### `init` - Create Global Template
+### Default Behavior (No Arguments)
 
-Creates or updates your global AGENTS.md template from an existing file.
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    agents-sync init                         │
-├─────────────────────────────────────────────────────────────┤
-│  FROM:  ./AGENTS.md (or --source <file>)                   │
-│  TO:    ~/.agents-sync/template.md                         │
-│                                                             │
-│  1. Reads content from source file                         │
-│  2. Creates ~/.agents-sync/ directory                     │
-│  3. Saves content as template.md                           │
-│  4. Creates config.json with metadata                      │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Usage:**
-```bash
-# Initialize with current directory's AGENTS.md
-agents-sync init
-
-# Use a custom file as template
-agents-sync init --source ./my-instructions.md
-
-# Creates empty template if source not found
-agents-sync init --source ./non-existent.md
-```
-
-### `local` - Sync Current Directory
-
-Syncs only the current directory with your global template.
+Drops AGENTS.md in the current directory from your global template.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    agents-sync local                        │
+│                    agents-sync                              │
+│                    (no arguments)                           │
 ├─────────────────────────────────────────────────────────────┤
 │  FROM:  ~/.agents-sync/template.md                         │
 │  TO:    ./AGENTS.md (current directory)                    │
@@ -93,23 +79,52 @@ Syncs only the current directory with your global template.
 
 **Usage:**
 ```bash
-# Interactive mode (shows diff, asks for confirmation)
-agents-sync local
+# Most common usage - just drop the file in current directory
+cd my-project
+agents-sync
 
-# Preview changes without applying
-agents-sync local --dry-run
-
-# Skip confirmation prompts
-agents-sync local --force
+# With options
+agents-sync --dry-run     # Preview changes
+agents-sync --force       # Skip confirmation
 ```
 
-### `global` - Sync All Projects
+### `template` - Create/Update Global Template
+
+Creates or updates your global AGENTS.md template from an existing file.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                 agents-sync template                       │
+├─────────────────────────────────────────────────────────────┤
+│  FROM:  ./AGENTS.md (or --source <file>)                   │
+│  TO:    ~/.agents-sync/template.md                         │
+│                                                             │
+│  1. Reads content from source file                         │
+│  2. Creates ~/.agents-sync/ directory                     │
+│  3. Saves content as template.md                           │
+│  4. Creates config.json with metadata                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Usage:**
+```bash
+# Create template from current directory's AGENTS.md
+agents-sync template
+
+# Use a custom file as template
+agents-sync template --source ./my-instructions.md
+
+# Creates empty template if source not found
+agents-sync template --source ./non-existent.md
+```
+
+### `scan` - Scan and Sync All Projects
 
 Scans your entire computer (or a specific path) and syncs all matching files.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                   agents-sync global                        │
+│                   agents-sync scan                          │
 ├─────────────────────────────────────────────────────────────┤
 │  SCANS: /, ~/home, or --path <dir> (depth-by-depth)        │
 │  FINDS: AGENTS.md, CLAUDE.md, GEMINI.md, etc.              │
@@ -141,23 +156,23 @@ Scans your entire computer (or a specific path) and syncs all matching files.
 **Usage:**
 ```bash
 # Scan entire computer (all drives on Windows, / and ~ on Unix)
-agents-sync global
+agents-sync scan
 
 # Preview all changes without applying
-agents-sync global --dry-run
+agents-sync scan --dry-run
 
 # Scan only specific directory
-agents-sync global --path ~/Projects
+agents-sync scan --path ~/Projects
 
 # Scan specific path with custom patterns
-agents-sync global --path ~/code --patterns "AGENTS.md,PROMPT.md"
+agents-sync scan --path ~/code --patterns "AGENTS.md,PROMPT.md"
 
 # Force skip all confirmations
-agents-sync global --force
+agents-sync scan --force
 ```
 
 **What Gets Scanned:**
-- Searches up to 6 directories deep (configurable in code)
+- Searches up to 6 directories deep
 - Processes directories level-by-level (BFS traversal)
 - Finds: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `CLAUDE.md.local`
 
@@ -226,9 +241,23 @@ Displays current configuration and statistics.
 └─────────────────────────────────────────────────────────────┘
 ```
 
+**Usage:**
+```bash
+agents-sync status
+```
+
 ## Examples
 
-### Use Case 1: Update Guidelines Across All Projects
+### Use Case 1: Set Up New Project
+
+Starting a new project and want your standard AGENTS.md.
+
+```bash
+cd my-new-project
+agents-sync
+```
+
+### Use Case 2: Update Guidelines Across All Projects
 
 You've improved your coding guidelines and want all projects to use them.
 
@@ -237,19 +266,10 @@ You've improved your coding guidelines and want all projects to use them.
 agents-sync edit
 
 # 2. Preview changes across all projects
-agents-sync global --dry-run
+agents-sync scan --dry-run
 
 # 3. Apply changes to all projects
-agents-sync global
-```
-
-### Use Case 2: Set Up New Project
-
-Starting a new project and want your standard AGENTS.md.
-
-```bash
-cd my-new-project
-agents-sync local
+agents-sync scan
 ```
 
 ### Use Case 3: Create Template from Existing Project
@@ -258,7 +278,7 @@ You have a well-configured project and want to use it as template.
 
 ```bash
 cd my-well-configured-project
-agents-sync init --source ./AGENTS.md
+agents-sync template --source ./AGENTS.md
 ```
 
 ### Use Case 4: Sync Only Specific Directory
@@ -266,8 +286,19 @@ agents-sync init --source ./AGENTS.md
 You want to sync projects in a specific folder without scanning entire computer.
 
 ```bash
-agents-sync global --path ~/Projects --dry-run
-agents-sync global --path ~/Projects
+agents-sync scan --path ~/Projects --dry-run
+agents-sync scan --path ~/Projects
+```
+
+### Use Case 5: Quick Drop in Multiple Projects
+
+Drop AGENTS.md in multiple projects quickly.
+
+```bash
+for dir in project1 project2 project3; do
+    cd ~/Projects/$dir
+    agents-sync --force
+done
 ```
 
 ## How It Works
@@ -346,6 +377,17 @@ Global config location: `~/.agents-sync/config.json`
 # Comprehensive test suite (20 tests)
 ./test-comprehensive.sh
 ```
+
+## Command Reference Summary
+
+| Command | Description | Alias |
+|---------|-------------|-------|
+| `agents-sync` | Sync current directory (default) | - |
+| `agents-sync template` | Create/update global template | - |
+| `agents-sync scan` | Scan and sync all projects | - |
+| `agents-sync edit` | Edit global template | - |
+| `agents-sync status` | Show configuration | - |
+| `agents-sync help` | Show help message | - |
 
 ## License
 

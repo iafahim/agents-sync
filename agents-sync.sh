@@ -249,35 +249,38 @@ AGENTS-SYNC v1.0.0
 Synchronize AGENTS.md across all your projects.
 
 USAGE:
-    agents-sync <command> [options]
+    agents-sync [command] [options]
+
+    No command = Sync current directory (default behavior)
 
 COMMANDS:
-    init              Initialize global template from current directory
-    local             Sync current directory only
-    global            Sync all projects across entire PC
+    (none)            Sync current directory only (default)
+    template          Create/update global template
+    scan              Scan and sync all projects across entire PC
     edit              Edit global template
     status            Show configuration and statistics
+    help              Show this help message
 
 OPTIONS:
-    --source <file>   Source file for init (default: ./AGENTS.md)
-    --path <dir>      Specific path to scan (for global mode)
+    --source <file>   Source file for template (default: ./AGENTS.md)
+    --path <dir>      Specific path to scan (for scan command)
     --patterns <list> File patterns to search (comma-separated)
     --dry-run         Preview changes without applying
     --force           Skip confirmation prompts
     --show-path       Show template path only (for edit command)
 
 EXAMPLES:
-    agents-sync init
-    agents-sync local
-    agents-sync global --dry-run
-    agents-sync global --path ~/Projects
-    agents-sync edit
-    agents-sync status
+    agents-sync                   # Sync current directory
+    agents-sync template          # Create template from current AGENTS.md
+    agents-sync scan --dry-run    # Preview all changes across PC
+    agents-sync scan --path ~/Projects
+    agents-sync edit              # Edit global template
+    agents-sync status            # Show configuration
 
 EOF
 }
 
-cmd_init() {
+cmd_template() {
     local source_path="${ARG_SOURCE:-./AGENTS.md}"
 
     if [[ ! -f "$source_path" ]]; then
@@ -349,12 +352,12 @@ cmd_local() {
     log_success "Synced: $target_file"
 }
 
-cmd_global() {
+cmd_scan() {
     local config=$(get_config)
     local template=$(get_template_content)
 
     if [[ -z "$template" ]]; then
-        log_error "No template found. Run 'agents-sync init' first."
+        log_error "No template found. Run 'agents-sync template' first."
         return 1
     fi
 
@@ -586,15 +589,15 @@ parse_args() {
 # MAIN
 # =============================================================================
 
-COMMAND="help"
+COMMAND="local"  # Default to local sync if no command specified
 parse_args "$@"
 
 case "$COMMAND" in
-    init)   cmd_init ;;
-    local)  cmd_local ;;
-    global) cmd_global ;;
-    edit)   cmd_edit ;;
-    status) cmd_status ;;
+    template)   cmd_template ;;
+    scan)       cmd_scan ;;
+    local)      cmd_local ;;
+    edit)       cmd_edit ;;
+    status)     cmd_status ;;
     help)
         cmd_help
         exit 0

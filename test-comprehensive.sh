@@ -157,8 +157,8 @@ test_script_loads() {
 
 # Test 2: Init command creates template
 test_init_creates_template() {
-    log_test "Init command creates template"
-    bash "$SCRIPT_PATH" init &> /dev/null || true
+    log_test "Template command creates template"
+    bash "$SCRIPT_PATH" template &> /dev/null || true
     CONFIG_DIR="${HOME}/.agents-sync"
     TEMPLATE_PATH="${CONFIG_DIR}/template.md"
     if [[ -f "$TEMPLATE_PATH" ]]; then
@@ -170,10 +170,10 @@ test_init_creates_template() {
 
 # Test 3: Init from source file
 test_init_from_source() {
-    log_test "Init from source file"
+    log_test "Template from source file"
     local source_file="${TEST_BASE_DIR}/source-AGENTS.md"
     echo "# Source AGENTS.md content" > "$source_file"
-    bash "$SCRIPT_PATH" init --source "$source_file" &> /dev/null || true
+    bash "$SCRIPT_PATH" template --source "$source_file" &> /dev/null || true
     TEMPLATE_PATH="${HOME}/.agents-sync/template.md"
     if grep -q "Source AGENTS.md content" "$TEMPLATE_PATH" 2>/dev/null; then
         log_pass
@@ -261,7 +261,7 @@ test_dry_run_safe() {
 test_depth_traversal() {
     log_test "Depth-by-depth traversal finds files correctly"
     local results
-    results=$(bash "$SCRIPT_PATH" global --path "${TEST_BASE_DIR}/depth-test" --dry-run --force 2>&1 | grep -c "File:" || true)
+    results=$(bash "$SCRIPT_PATH" scan --path "${TEST_BASE_DIR}/depth-test" --dry-run --force 2>&1 | grep -c "File:" || true)
     # Should find 5 files (we created 5 AGENTS.md files)
     if [[ $results -ge 5 ]]; then
         log_pass
@@ -274,7 +274,7 @@ test_depth_traversal() {
 test_excluded_dirs() {
     log_test "Excluded directories are ignored"
     local output
-    output=$(bash "$SCRIPT_PATH" global --path "${TEST_BASE_DIR}/exclude-test" --dry-run --force 2>&1)
+    output=$(bash "$SCRIPT_PATH" scan --path "${TEST_BASE_DIR}/exclude-test" --dry-run --force 2>&1)
     # Should NOT contain files from node_modules, .git, vendor, target
     if ! echo "$output" | grep -q "node_modules/AGENTS.md" && \
        ! echo "$output" | grep -q "\.git/AGENTS.md" && \
@@ -290,7 +290,7 @@ test_excluded_dirs() {
 test_system_dirs_skipped() {
     log_test "System directories are skipped"
     local output
-    output=$(bash "$SCRIPT_PATH" global --path "${TEST_BASE_DIR}/skip-test" --dry-run --force 2>&1)
+    output=$(bash "$SCRIPT_PATH" scan --path "${TEST_BASE_DIR}/skip-test" --dry-run --force 2>&1)
     # Should NOT contain files from usr, .config, .cache, .npm
     if ! echo "$output" | grep -q "/usr/AGENTS.md" && \
        ! echo "$output" | grep -q "/\.config/AGENTS.md" && \
@@ -305,7 +305,7 @@ test_system_dirs_skipped() {
 test_valid_projects_found() {
     log_test "Valid projects are found alongside system dirs"
     local output
-    output=$(bash "$SCRIPT_PATH" global --path "${TEST_BASE_DIR}/skip-test" --dry-run --force 2>&1)
+    output=$(bash "$SCRIPT_PATH" scan --path "${TEST_BASE_DIR}/skip-test" --dry-run --force 2>&1)
     # Should contain the valid myproject file
     if echo "$output" | grep -q "myproject/AGENTS.md"; then
         log_pass
@@ -322,10 +322,10 @@ test_custom_patterns() {
     cd "$test_dir"
     echo "# CUSTOM.md" > CUSTOM.md
     echo "# OTHER.md" > OTHER.md
-    bash "$SCRIPT_PATH" global --path "$test_dir" --patterns "CUSTOM.md" --dry-run --force &> /dev/null
+    bash "$SCRIPT_PATH" scan --path "$test_dir" --patterns "CUSTOM.md" --dry-run --force &> /dev/null
     # Should find CUSTOM.md but not OTHER.md
     local output
-    output=$(bash "$SCRIPT_PATH" global --path "$test_dir" --patterns "CUSTOM.md" --dry-run --force 2>&1)
+    output=$(bash "$SCRIPT_PATH" scan --path "$test_dir" --patterns "CUSTOM.md" --dry-run --force 2>&1)
     if echo "$output" | grep -q "CUSTOM.md" && ! echo "$output" | grep -q "OTHER.md"; then
         log_pass
     else
@@ -343,9 +343,9 @@ test_multiple_patterns() {
     echo "# AGENTS.md" > AGENTS.md
     echo "# CLAUDE.md" > CLAUDE.md
     echo "# GEMINI.md" > GEMINI.md
-    bash "$SCRIPT_PATH" global --path "$test_dir" --patterns "AGENTS.md,CLAUDE.md,GEMINI.md" --dry-run --force &> /dev/null
+    bash "$SCRIPT_PATH" scan --path "$test_dir" --patterns "AGENTS.md,CLAUDE.md,GEMINI.md" --dry-run --force &> /dev/null
     local output
-    output=$(bash "$SCRIPT_PATH" global --path "$test_dir" --patterns "AGENTS.md,CLAUDE.md,GEMINI.md" --dry-run --force 2>&1)
+    output=$(bash "$SCRIPT_PATH" scan --path "$test_dir" --patterns "AGENTS.md,CLAUDE.md,GEMINI.md" --dry-run --force 2>&1)
     local count
     count=$(echo "$output" | grep -c "File:" || true)
     # Should find 3 files
@@ -361,7 +361,7 @@ test_multiple_patterns() {
 test_max_depth() {
     log_test "Max depth limit is respected"
     local output
-    output=$(bash "$SCRIPT_PATH" global --path "${TEST_BASE_DIR}/depth-test" --dry-run --force 2>&1)
+    output=$(bash "$SCRIPT_PATH" scan --path "${TEST_BASE_DIR}/depth-test" --dry-run --force 2>&1)
     # Should find files but not go beyond max_depth=6
     # Our deepest file is at level 6, should be found
     if echo "$output" | grep -q "level6/CLAUDE.md"; then
@@ -377,7 +377,7 @@ test_empty_directory() {
     local test_dir="${TEST_BASE_DIR}/empty-test"
     mkdir -p "$test_dir"
     local output
-    output=$(bash "$SCRIPT_PATH" global --path "$test_dir" --dry-run --force 2>&1)
+    output=$(bash "$SCRIPT_PATH" scan --path "$test_dir" --dry-run --force 2>&1)
     # Should handle gracefully without errors
     if [[ $? -eq 0 ]]; then
         log_pass
@@ -390,7 +390,7 @@ test_empty_directory() {
 test_nonexistent_path() {
     log_test "Non-existent path handling"
     local output
-    output=$(bash "$SCRIPT_PATH" global --path "/nonexistent/path/that/does/not/exist" --dry-run --force 2>&1 || true)
+    output=$(bash "$SCRIPT_PATH" scan --path "/nonexistent/path/that/does/not/exist" --dry-run --force 2>&1 || true)
     # Should handle gracefully with error message
     if echo "$output" | grep -qE "(ERROR|error|not found|Path not found)"; then
         log_pass
@@ -440,7 +440,7 @@ test_special_characters() {
     echo "# Dashes" > "$test_dir/project-with-dashes/AGENTS.md"
     echo "# Underscores" > "$test_dir/project_with_underscores/AGENTS.md"
     local output
-    output=$(bash "$SCRIPT_PATH" global --path "$test_dir" --dry-run --force 2>&1)
+    output=$(bash "$SCRIPT_PATH" scan --path "$test_dir" --dry-run --force 2>&1)
     local count
     count=$(echo "$output" | grep -c "File:" || true)
     if [[ $count -eq 3 ]]; then

@@ -81,8 +81,8 @@ else
 fi
 
 # Test 2: Init command creates template
-log_test "Init command creates template"
-bash "$SCRIPT_PATH" init &> /dev/null || true
+log_test "Template command creates template"
+bash "$SCRIPT_PATH" template &> /dev/null || true
 CONFIG_DIR="${HOME}/.agents-sync"
 TEMPLATE_PATH="${CONFIG_DIR}/template.md"
 if [[ -f "$TEMPLATE_PATH" ]]; then
