@@ -35,7 +35,13 @@ CONFIG_PATH="${CONFIG_DIR}/config.json"
 TEMPLATE_PATH="${CONFIG_DIR}/template.md"
 
 DEFAULT_PATTERNS=("AGENTS.md" "CLAUDE.md" "GEMINI.md" "CLAUDE.md.local")
-EXCLUDED_DIRS=("node_modules" ".git" "vendor" "bin" "obj" "build" "dist" ".vs" ".idea")
+
+# Directories to exclude from search (path components)
+# Note: These are matched as directory components, so "tmp" would match "/tmp/" in paths
+EXCLUDED_DIRS=("node_modules" ".git" "vendor" "bin" "obj" "build" "dist" ".vs" ".idea" "target" ".venv" "venv" "env" ".env" "cache" ".cache" "temp" ".tmp")
+
+# System/user directories that are unlikely to contain project AGENTS files
+SKIP_DIRS=("System Volume Information" '$RECYCLE.BIN' "Windows" "Program Files" "Program Files (x86)" "ProgramData" "usr" "bin" "sbin" "lib" "etc" "var" "sys" "proc" "dev" "run" "boot" "opt" "srv" "media" "mnt" ".local" ".config" ".cache" ".npm" ".yarn" ".vscode" ".idea" ".cursor")
 
 # =============================================================================
 # LOGGING FUNCTIONS
@@ -106,11 +112,26 @@ set_template_content() {
 
 is_excluded_dir() {
     local path="$1"
+    local basename=$(basename "$path")
+
+    # Check EXCLUDED_DIRS (path components)
     for excluded in "${EXCLUDED_DIRS[@]}"; do
         if echo "$path" | grep -qE "/$excluded(/|$)"; then
             return 0
         fi
     done
+
+    # Check SKIP_DIRS - check both the basename and parent directory names
+    for skip in "${SKIP_DIRS[@]}"; do
+        if [[ "$basename" == "$skip" ]]; then
+            return 0
+        fi
+        # Also check if any parent directory is in SKIP_DIRS
+        if echo "$path" | grep -qE "/$skip(/|\$)"; then
+            return 0
+        fi
+    done
+
     return 1
 }
 
@@ -119,36 +140,52 @@ find_ai_doc_files() {
     shift
     local patterns=("$@")
 
-    log_info "Scanning: $root_path"
+    >&2 log_info "Scanning: $root_path (depth-by-depth)"
 
     local results=()
     local max_depth=6
+    local current_depth=0
 
-    # Use platform-specific find command
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS/BSD find - use -depth with pruning
-        for pattern in "${patterns[@]}"; do
-            while IFS= read -r -d '' file; do
-                if ! is_excluded_dir "$file"; then
-                    results+=("$file")
+    # Normalize root path (remove trailing slash)
+    root_path="${root_path%/}"
+
+    # Use breadth-first search: process each depth level before going deeper
+    while [[ $current_depth -le $max_depth ]]; do
+        local dirs_at_depth=()
+
+        if [[ $current_depth -eq 0 ]]; then
+            # Start with root path
+            dirs_at_depth=("$root_path")
+        else
+            # Find all directories at current depth using mindepth/maxdepth
+            while IFS= read -r -d '' dir; do
+                if [[ -d "$dir" ]] && ! is_excluded_dir "$dir"; then
+                    dirs_at_depth+=("$dir")
                 fi
-            done < <(find "$root_path" -name "$pattern" -type f -print0 2>/dev/null || true)
-        done
-    else
-        # GNU find supports -maxdepth
-        for pattern in "${patterns[@]}"; do
-            while IFS= read -r -d '' file; do
-                if ! is_excluded_dir "$file"; then
-                    # Check depth by counting directory separators
-                    local depth="${file#$root_path}"
-                    depth=$(echo "$depth" | tr -cd '/' | wc -c)
-                    if [[ $depth -le $max_depth ]]; then
+            done < <(find "$root_path" -mindepth $current_depth -maxdepth $current_depth -type d -print0 2>/dev/null || true)
+        fi
+
+        # Search for pattern files in directories at current depth
+        for dir in "${dirs_at_depth[@]}"; do
+            if [[ ! -d "$dir" ]] || is_excluded_dir "$dir"; then
+                continue
+            fi
+
+            for pattern in "${patterns[@]}"; do
+                while IFS= read -r -d '' file; do
+                    if [[ -f "$file" ]] && ! is_excluded_dir "$file"; then
                         results+=("$file")
                     fi
-                fi
-            done < <(find "$root_path" -name "$pattern" -type f -print0 2>/dev/null || true)
+                done < <(find "$dir" -maxdepth 1 -name "$pattern" -type f -print0 2>/dev/null || true)
+            done
         done
-    fi
+
+        ((current_depth++)) || true
+    done
+
+    # DEBUG: Uncomment to see what's being returned
+    # >&2 echo "DEBUG: Returning ${#results[@]} files"
+    # >&2 printf '%s\n' "${results[@]}" | >&2 cat -A
 
     printf '%s\n' "${results[@]}" | sort -u
 }
@@ -175,8 +212,8 @@ show_diff() {
     echo -e "  \033[33m[DIFF]\033[0m Content differs:"
     echo "    Lines: $old_lines -> $new_lines"
 
-    # Show first few differing lines
-    diff -u <(echo "$old_content") <(echo "$new_content") 2>/dev/null | head -20 || true
+    # Show first few differing lines (limited output)
+    diff -u <(echo "$old_content") <(echo "$new_content") 2>&1 | head -n 20 || :
 }
 
 sync_file() {
@@ -370,10 +407,10 @@ cmd_global() {
         fi
 
         if [[ "$current_content" != "$template" ]]; then
-            ((changes_needed++))
+            ((changes_needed++)) || true
         fi
 
-        echo ""
+        echo "" || true
     done
 
     echo "============================================================================"
